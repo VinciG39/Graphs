@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 typedef struct
 {
@@ -9,6 +10,8 @@ typedef struct
 
 typedef struct
 {
+    char name[2];
+    int capacity;
     int value;
     int degree;
     Edge *edges;
@@ -26,20 +29,22 @@ Edge createEdge (int to, int weight)
     return e;
 }
 
-int initVertex(Vertex *v, int value, int degree, const int *neighbors)
+int initVertex(Vertex *v, int value, int degree, const int *neighbors, const int *edgesV)
 {
     v->value  = value;
     v->degree = degree;
     v->edges  = NULL;
 
-    if (degree > 0) {
+    if (degree > 0)
+    {
         v->edges = malloc(degree * sizeof *v->edges);
-        if (v->edges == NULL)
-            return -1;
+        if (v->edges == NULL) return -1;
     }
 
     for (int i = 0; i < degree; i++)
-        v->edges[i] = createEdge(neighbors[i], 1);
+    {
+        v->edges[i] = createEdge(neighbors[i], edgesV[i]);
+    }
 
     return 0;
 }
@@ -101,33 +106,167 @@ int exportDot(const Graph *g, const char *path)
     return 0;
 }
 
-int main () 
+int loadEdges (FILE *file, int **to, int **values)
 {
-    int count = 5;
+    int capacity = 2;
+    int iterator = 0;
+
+    int *tempTo = malloc(capacity * sizeof(int));
+    int *tempValues = malloc(capacity * sizeof(int));
+
+    int c;
+    while ((c = fgetc(file)) != '\n' || c != EOF)
+    {
+        if (isspace(c))
+        {
+            continue;
+        }
+
+        char tag = (char)c;
+        int value = 0;
+
+        while((c = fgetc(file)) == ' ');
+
+        while (isdigit(c))
+        {
+            value = value * 10 + (c - '0');
+            c = fgetc(file);
+        }
+
+        if (iterator >= capacity)
+        {   
+            capacity *= 2;
+            tempTo = realloc(tempTo, capacity * sizeof(int));
+            tempValues = realloc(tempValues, capacity * sizeof(int));
+        }
+
+        tempTo[iterator] = tag - 'A';
+        tempValues[iterator] = value;
+        iterator++;
+        
+        if (c == '\n' || c == EOF)
+        {
+            break;
+        }
+
+        ungetc(c, file);
+    }
+
+    *to = tempTo;
+    *values = tempValues;
+
+    return iterator;
+}
+
+void loadVertecis (FILE *file, char *vertecis, int *vertecisValues)
+{
+    int c;
+    int iterator = 0;
+
+    while ((c = fgetc(file)) != '\n' || c != EOF)
+    {
+        if (isspace(c))
+        {
+            continue;
+        }
+
+        char tag = (char)c;
+        int value = 0;
+
+        while((c = fgetc(file)) == ' ');
+
+        while (isdigit(c))
+        {
+            value = value * 10 + (c - '0');
+            c = fgetc(file);
+        }
+
+        //printf("%c %d\n", tag, value);
+        vertecis[iterator] = tag;
+        vertecisValues[iterator] = value;
+        iterator++;
+        
+        if (c == '\n' || c == EOF)
+        {
+            break;
+        }
+
+        ungetc(c, file);
+    }
+}
+
+void free2Dint (int **array, int size)
+{   
+
+    if (array == NULL)
+    {
+        return;
+    }
+    for (int i = 0; i < size; i++)
+    {
+        free(array[i]);
+    }
+    free(array);
+}
+
+int main (int argc, char *argv[]) 
+{   
+    int count = 0;
+
+    if (argc < 2)
+    {
+        fprintf(stderr, "chyba cesta k suboru!\n");
+    }
+
+    FILE *file = fopen(argv[1], "r");
+    
+    if (file == NULL)
+    {
+         fprintf(stderr, "chyba v ceste k suboru!\n");
+    }
+
+    fscanf(file, "%d", &count);
     Graph *G = createGraph(count);
+    
     if (G == NULL)
     {
         return 1;
     }
 
-    // Vertecis
-    int V0[] = {1, 2, 3, 4}; // A: B C D E
-    int V1[] = {0, 2, 4};    // B: A C E
-    int V2[] = {1, 0, 3};    // C: B A D
-    int V3[] = {2, 0};       // D: C A
-    int V4[] = {1, 0};       // E: B A
+    char *vertecis = malloc(count * sizeof(char));
+    int *vertecisV = malloc(count * sizeof(int));
+    
+    int **edgesV = malloc(count * sizeof(int *));
+    int **neighbors = malloc(count * sizeof(int *));
+    int *degree = malloc(count * sizeof(int)); 
 
-    if (initVertex(&G->vertices[0], 3, 4, V0) != 0 ||
-        initVertex(&G->vertices[1], 1, 3, V1) != 0 ||
-        initVertex(&G->vertices[2], 0, 3, V2) != 0 ||
-        initVertex(&G->vertices[3], 4, 2, V3) != 0 ||
-        initVertex(&G->vertices[4], 2, 2, V4) != 0)
+    loadVertecis(file, vertecis, vertecisV);
+
+    for (int i = 0; i < count; i++)
     {
-        freeGraph(G);
-        return -1;
+        degree[i] = loadEdges(file, &neighbors[i], &edgesV[i]);
+    }
+
+    fclose(file);
+
+    for (int i = 0; i < count; i++)
+    {
+        if (initVertex(&G->vertices[i], vertecisV[i], degree[i], neighbors[i], edgesV[i]) != 0)
+        {
+            freeGraph(G);
+            return -1;
+        }
     }
 
     exportDot(G, "graf.dot");
+
+    //free
+    free(vertecis);
+    free(vertecisV);
+    free(degree);
+
+    free2Dint(edgesV, count);
+    free2Dint(neighbors, count);
     freeGraph(G);
 
     system("dot -Tpng graf.dot -o graf.png");
