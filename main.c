@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <stdbool.h>
 
 typedef struct
 {
@@ -29,7 +31,7 @@ Edge createEdge (int to, int weight)
     return e;
 }
 
-int initVertex(Vertex *v, int value, int degree, const int *neighbors, const int *edgesV)
+int initVertex(Vertex *v, int value, int degree, const int *neighbours, const int *edgesV)
 {
     v->value  = value;
     v->degree = degree;
@@ -43,7 +45,7 @@ int initVertex(Vertex *v, int value, int degree, const int *neighbors, const int
 
     for (int i = 0; i < degree; i++)
     {
-        v->edges[i] = createEdge(neighbors[i], edgesV[i]);
+        v->edges[i] = createEdge(neighbours[i], edgesV[i]);
     }
 
     return 0;
@@ -209,27 +211,61 @@ void free2Dint (int **array, int size)
     free(array);
 }
 
-int nearestNeighbor (Graph g)
-{  
-    Vertex *visited = malloc(g.count * sizeof(Vertex));
-    Vertex start = g.vertices[0];
-    Vertex point = start;
-    Vertex end;
+int nearestNeighbour(Graph *g)
+{
+    bool *visited = calloc(g->count, sizeof(bool));
 
-    int result = 0;
-    int lowest = INT_MAX;
+    int start = 0;
+    int current = start;
+    visited[current] = true;
 
-    for (int i = 0; i < g.count; i++)
+    int cost = 0;
+
+    for (int i = 1; i < g->count; i++)
     {
-        for (int j = 0; j < g.vertices[i].degree; j++)
+        Vertex *cur = &g->vertices[current];
+        int lowest = INT_MAX;
+        int best = -1;
+
+        for (int j = 0; j < cur->degree; j++)
         {
-            if (point.edges->weight < lowest)
+            int to = cur->edges[j].to;
+            int weight = cur->edges[j].weight;
+
+            if (!visited[to] && weight < lowest)
             {
-                lowest = point.edges->weight;
+                lowest = weight;
+                best = to;
             }
         }
-        result += lowest;
+
+        if (best == -1)
+        {
+            free(visited);
+            fprintf(stderr, "Seknuty v slepej ulicke\n");
+            return -1;
+        }
+
+        visited[best] = true;
+        cost += lowest;
+        current = best;
     }
+
+    // Vertex *cur = &g->vertices[current];
+    // for (int i = 0; i < cur->degree; i++)
+    // {
+    //     int to = cur->edges[i].to;
+    //     int weight = cur->edges[i].weight;
+
+    //     if (to == start)
+    //     {
+    //         cost += weight;
+    //     }
+    // }
+
+
+    free(visited);
+    return cost;
 }
 
 int main (int argc, char *argv[]) 
@@ -260,21 +296,21 @@ int main (int argc, char *argv[])
     int *vertecisV = malloc(count * sizeof(int));
     
     int **edgesV = malloc(count * sizeof(int *));
-    int **neighbors = malloc(count * sizeof(int *));
+    int **neighbours = malloc(count * sizeof(int *));
     int *degree = malloc(count * sizeof(int)); 
 
     loadVertecis(file, vertecis, vertecisV);
 
     for (int i = 0; i < count; i++)
     {
-        degree[i] = loadEdges(file, &neighbors[i], &edgesV[i]);
+        degree[i] = loadEdges(file, &neighbours[i], &edgesV[i]);
     }
 
     fclose(file);
 
     for (int i = 0; i < count; i++)
     {
-        if (initVertex(&G->vertices[i], vertecisV[i], degree[i], neighbors[i], edgesV[i]) != 0)
+        if (initVertex(&G->vertices[i], vertecisV[i], degree[i], neighbours[i], edgesV[i]) != 0)
         {
             freeGraph(G);
             return -1;
@@ -283,13 +319,16 @@ int main (int argc, char *argv[])
 
     exportDot(G, "output/NN.dot");
 
+    int costOfGraph = nearestNeighbour(G);
+    printf("NN path costs: %d", costOfGraph);
+
     //free
     free(vertecis);
     free(vertecisV);
     free(degree);
 
     free2Dint(edgesV, count);
-    free2Dint(neighbors, count);
+    free2Dint(neighbours, count);
     freeGraph(G);
 
     system("dot -Tpng output/NN.dot -o output/NN.png");
