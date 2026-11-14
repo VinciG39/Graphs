@@ -209,6 +209,29 @@ void free2Dint (int **array, int size)
     free(array);
 }
 
+int nearestNeighbor (Graph g)
+{  
+    Vertex *visited = malloc(g.count * sizeof(Vertex));
+    Vertex start = g.vertices[0];
+    Vertex point = start;
+    Vertex end;
+
+    int result = 0;
+    int lowest = INT_MAX;
+
+    for (int i = 0; i < g.count; i++)
+    {
+        for (int j = 0; j < g.vertices[i].degree; j++)
+        {
+            if (point.edges->weight < lowest)
+            {
+                lowest = point.edges->weight;
+            }
+        }
+        result += lowest;
+    }
+}
+
 int main (int argc, char *argv[]) 
 {   
     int count = 0;
@@ -258,7 +281,7 @@ int main (int argc, char *argv[])
         }
     }
 
-    exportDot(G, "graf.dot");
+    exportDot(G, "output/NN.dot");
 
     //free
     free(vertecis);
@@ -269,6 +292,6 @@ int main (int argc, char *argv[])
     free2Dint(neighbors, count);
     freeGraph(G);
 
-    system("dot -Tpng graf.dot -o graf.png");
+    system("dot -Tpng output/NN.dot -o output/NN.png");
     return 0;
 }
