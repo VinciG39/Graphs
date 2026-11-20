@@ -13,7 +13,7 @@ typedef struct
 
 typedef struct
 {
-    char name[2];
+    char name;
     int capacity;
     int value;
     int degree;
@@ -211,13 +211,14 @@ void free2Dint (int **array, int size)
     free(array);
 }
 
-int nearestNeighbour(Graph *g)
+int nearestNeighbour(Graph *g, char *path)
 {
     bool *visited = calloc(g->count, sizeof(bool));
 
     int start = 0;
     int current = start;
     visited[current] = true;
+    path[0] = current;
 
     int cost = 0;
 
@@ -249,6 +250,8 @@ int nearestNeighbour(Graph *g)
         visited[best] = true;
         cost += lowest;
         current = best;
+        path[i] = best;
+        //printf("%c -> ", best + 'A');
     }
 
     Vertex *cur = &g->vertices[current];
@@ -261,8 +264,9 @@ int nearestNeighbour(Graph *g)
         {
             cost += weight;
         }
-    }
+    }   
 
+    path[g->count -1] = start;
 
     free(visited);
     return cost;
@@ -335,8 +339,22 @@ int main (int argc, char *argv[])
     snprintf(dotPath, sizeof dotPath, "output/%s.dot", name);
     exportDot(G, dotPath);
 
-    int costOfGraph = nearestNeighbour(G);
-    printf("NN path costs: %d", costOfGraph);
+    char *path = malloc(count * sizeof(char));
+
+    int costOfGraph = nearestNeighbour(G, path);
+    
+    for (int i = 0; i < count; i++)
+    {
+        if (i == count -1 )
+        {
+            printf("%c", path[i] + 'A');
+        }
+        else 
+        {
+            printf("%c -> ", path[i] + 'A');
+        }
+    }
+    printf("\nNN path costs: %d\n", costOfGraph);
 
     //free
     free(vertecis);
@@ -346,6 +364,7 @@ int main (int argc, char *argv[])
     free2Dint(edgesV, count);
     free2Dint(neighbours, count);
     freeGraph(G);
+    free(path);
 
     char cmd[700];
     snprintf(cmd, sizeof cmd, "dot -Tpng \"%s\" -o \"output/%s.png\"", dotPath, name);
