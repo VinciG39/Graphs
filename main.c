@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <string.h>
 
 typedef struct
 {
@@ -199,7 +200,6 @@ void loadVertecis (FILE *file, char *vertecis, int *vertecisValues)
 
 void free2Dint (int **array, int size)
 {   
-
     if (array == NULL)
     {
         return;
@@ -251,17 +251,17 @@ int nearestNeighbour(Graph *g)
         current = best;
     }
 
-    // Vertex *cur = &g->vertices[current];
-    // for (int i = 0; i < cur->degree; i++)
-    // {
-    //     int to = cur->edges[i].to;
-    //     int weight = cur->edges[i].weight;
+    Vertex *cur = &g->vertices[current];
+    for (int i = 0; i < cur->degree; i++)
+    {
+        int to = cur->edges[i].to;
+        int weight = cur->edges[i].weight;
 
-    //     if (to == start)
-    //     {
-    //         cost += weight;
-    //     }
-    // }
+        if (to == start)
+        {
+            cost += weight;
+        }
+    }
 
 
     free(visited);
@@ -317,7 +317,23 @@ int main (int argc, char *argv[])
         }
     }
 
-    exportDot(G, "output/NN.dot");
+    const char *base = argv[1];
+    for (const char *p = argv[1]; *p; p++)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            base = p + 1;
+        }
+    }
+
+    char name[256];
+    snprintf(name, sizeof name, "%s", base);
+    char *dot = strrchr(name, '.');
+    if (dot) *dot = '\0'; 
+
+    char dotPath[300];
+    snprintf(dotPath, sizeof dotPath, "output/%s.dot", name);
+    exportDot(G, dotPath);
 
     int costOfGraph = nearestNeighbour(G);
     printf("NN path costs: %d", costOfGraph);
@@ -331,6 +347,8 @@ int main (int argc, char *argv[])
     free2Dint(neighbours, count);
     freeGraph(G);
 
-    system("dot -Tpng output/NN.dot -o output/NN.png");
+    char cmd[700];
+    snprintf(cmd, sizeof cmd, "dot -Tpng \"%s\" -o \"output/%s.png\"", dotPath, name);
+    system(cmd);
     return 0;
 }

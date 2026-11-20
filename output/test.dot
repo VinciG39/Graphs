@@ -1,0 +1,13 @@
+strict graph G {
+    node [shape=circle];
+    0 [label="A\n(0)"];
+    1 [label="B\n(38)"];
+    2 [label="C\n(7)"];
+    3 [label="D\n(21)"];
+    4 [label="E\n(2)"];
+    0 -- -66 [label="0"];
+    1 -- -66 [label="0"];
+    2 -- -66 [label="0"];
+    3 -- -66 [label="0"];
+    4 -- -66 [label="0"];
+}
