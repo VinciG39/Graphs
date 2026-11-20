@@ -83,9 +83,21 @@ void freeGraph (Graph *g)
     free(g);
 }
 
-int exportDot(const Graph *g, const char *path)
+static bool edgeInPath(const int *tour, int count, int a, int b)
 {
-    FILE *f = fopen(path, "w");
+    if (tour == NULL) return false;
+    for (int i = 0; i < count; i++)     
+    {
+        int u = tour[i], v = tour[i + 1];
+        if ((u == a && v == b) || (u == b && v == a))
+            return true;
+    }
+    return false;
+}
+
+int exportDot(const Graph *g, const char *file, const int *tour)
+{
+    FILE *f = fopen(file, "w");
     if (f == NULL)
         return -1;
 
@@ -96,11 +108,23 @@ int exportDot(const Graph *g, const char *path)
     {
         fprintf(f, "    %d [label=\"%c\\n(%d)\"];\n", i, 'A' + i, g->vertices[i].value);
     }
-    for (int i = 0; i < g->count; i++) {
+
+    for (int i = 0; i < g->count; i++)
+    {
         const Vertex *v = &g->vertices[i];
         for (int k = 0; k < v->degree; k++)
         {
-            fprintf(f, "    %d -- %d [label=\"%d\"];\n", i, v->edges[k].to, v->edges[k].weight);
+            int to = v->edges[k].to;
+            if (to < i) continue;   
+
+            if (edgeInPath(tour, g->count + 1, i, to))
+            {
+                fprintf(f, "    %d -- %d [label=\"%d\", color=\"blue\", penwidth=2.5, fontcolor=\"blue\"];\n", i, to, v->edges[k].weight);
+            }
+            else
+            {
+                fprintf(f, "    %d -- %d [label=\"%d\", color=\"gray60\"];\n", i, to, v->edges[k].weight);
+            }
         }
     }
 
@@ -211,7 +235,7 @@ void free2Dint (int **array, int size)
     free(array);
 }
 
-int nearestNeighbour(Graph *g, char *path)
+int nearestNeighbour(Graph *g, int *path)
 {
     bool *visited = calloc(g->count, sizeof(bool));
 
@@ -266,7 +290,7 @@ int nearestNeighbour(Graph *g, char *path)
         }
     }   
 
-    path[g->count -1] = start;
+    path[g->count] = start;
 
     free(visited);
     return cost;
@@ -335,17 +359,13 @@ int main (int argc, char *argv[])
     char *dot = strrchr(name, '.');
     if (dot) *dot = '\0'; 
 
-    char dotPath[300];
-    snprintf(dotPath, sizeof dotPath, "output/%s.dot", name);
-    exportDot(G, dotPath);
-
-    char *path = malloc(count * sizeof(char));
+    int *path = malloc((count + 1) * sizeof(int));
 
     int costOfGraph = nearestNeighbour(G, path);
     
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < count + 1; i++)
     {
-        if (i == count -1 )
+        if (i == count)
         {
             printf("%c", path[i] + 'A');
         }
@@ -354,7 +374,23 @@ int main (int argc, char *argv[])
             printf("%c -> ", path[i] + 'A');
         }
     }
+    printf("\n");
+    for (int i = 0; i < count + 1; i++)
+    {
+        if (i == count)
+        {
+            printf("%d", path[i] );
+        }
+        else 
+        {
+            printf("%d -> ", path[i] );
+        }
+    }
     printf("\nNN path costs: %d\n", costOfGraph);
+
+    char dotPath[300];
+    snprintf(dotPath, sizeof dotPath, "output/%s.dot", name);
+    exportDot(G, dotPath, path);
 
     //free
     free(vertecis);
